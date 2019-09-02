@@ -1,385 +1,206 @@
 <template>
   <div class="home">
-    <video ref="video" id="video" style="display:none;" autoplay></video>
     <canvas id="canvas"></canvas>
-    <div class="element">
-      <div class="effect-btn">
-        <label for="glitch">
-          <input id="glitch" type="checkbox" v-on:change="glitch()">Glitch
-        </label>
-        <label for="rgb">
-          <input id="rgb" type="checkbox" v-on:change="rgb()">RGBshift
-        </label>
-        <input
-          id="rgbrange"
-          type="range"
-          min="0.001"
-          max="0.010"
-          step="0.001"
-          oninput="this.rgbvalue=this.value"
-          value="0.005"
-        >
-
-        <label for="mosaic">
-          <input id="mosaic" type="checkbox" v-on:change="mosaic()">Mosaic
-        </label>
-        <input
-          id="pixelrange"
-          type="range"
-          min="0.01"
-          max="0.1"
-          step="0.01"
-          oninput="this.pixelvalue=this.value"
-          value="0.03"
-        >
-        <label for="sepia">
-          <input id="sepia" type="checkbox" v-on:change="sepia()">Sepia
-        </label>
-        <label for="film">
-          <input id="film" type="checkbox" v-on:change="film()">Film
-        </label>
-        <label for="sobel">
-          <input id="sobel" type="checkbox" v-on:change="sobel()">Sobel
-        </label>
-      </div>
-      <div id="img-wrap"></div>
+    <p id="vertexShader">
+      precision mediump float;
+      uniform float time;
+      uniform vec2 resolution;
+      void main(){
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    </p>
+    <div class="text_contents">
+      <textarea v-model="fragment" name="fragment" id="fragmentText" cols="30" rows="10"></textarea>
+      <button v-on:click="frag_compile">compile</button>
     </div>
-
-    <a class="capture_btn" ontouchstart v-on:click="capture()" href="#">
-      <div>
-        <img src="@/assets/img/shutter.png" alt>
-      </div>
-    </a>
   </div>
 </template>
-
 <script>
 import * as THREE from "three";
-import EffectComposer from "@/assets/js/postprocessing/EffectComposer.js";
-import CopyShader from "@/assets/js/shaders/CopyShader.js";
-import ShaderPass from "@/assets/js/postprocessing/ShaderPass.js";
-import RenderPass from "@/assets/js/postprocessing/RenderPass.js";
-import RGBShiftShader from "@/assets/js/shaders/RGBShiftShader.js";
-import DigitalGlitch from "@/assets/js/shaders/DigitalGlitch.js";
-import GlitchPass from "@/assets/js/postprocessing/GlitchPass.js";
-import SepiaShader from "@/assets/js/shaders/SepiaShader.js";
-import FilmShader from "@/assets/js/shaders/FilmShader.js";
-import PixelShader from "@/assets/js/shaders/PixelShader.js";
-import SobelOperatorShader from "@/assets/js/shaders/SobelOperatorShader.js";
-
 export default {
   name: "home",
   data() {
-    const video = {};
     const $canvas = {};
     const camera = null;
-
+    const controls = null;
     const scene = null;
-    const texture = null;
-    const geometry = null;
-
-    const material = null;
     const renderer = null;
-    const mesh = null;
-    const composer = null;
-    const digiGlitch = null;
-    const rgbShift = null;
-    const Pixel = null;
-    const Sepia = null;
-    const Film = null;
-    const AnimationID = null;
-    const rgbvalue = 0.005;
-    const pixelvalue = 0.03;
-    const Sobel = null;
+    const model = null;
+    const materialShader = null;
+    const geometry = null;
+    const vertices = null;
+    const index = null;
+    const time = 0.0;
+    const clock = null;
+    const windowWidth = null;
+    const windowHeight = null;
+    const dpr = null;
     return {
-      video,
       $canvas,
       camera,
+      controls,
       scene,
-      texture,
-      geometry,
-      material,
       renderer,
-      mesh,
-      composer,
-      digiGlitch,
-      rgbShift,
-      Pixel,
-      AnimationID,
-      rgbvalue,
-      pixelvalue,
-      Sepia,
-      Film,
-      Sobel
+      model,
+      materialShader,
+      geometry,
+      vertices,
+      index,
+      time,
+      clock,
+      windowWidth,
+      windowHeight,
+      dpr,
+      fragment:
+        "precision mediump float;\n\n" +
+        "void main(){\n" +
+        "gl_FragColor = vec4(vec3(1.0,0.0,0.0),1.0); }"
     };
   },
   mounted() {
+    window.addEventListener("load", function() {
+      document.getElementById("fragmentText").textContent = this.fragment;
+    });
     this.init();
     this.animate();
-    const imgWrap = document.getElementById("img-wrap");
-    imgWrap.addEventListener("mouseover", function(e) {
-      e.target.style.cssText =
-        "opacity: 0.5;" +
-        "width: 120px;" +
-        "height: 120px;" +
-        "object-fit: cover";
-    });
-    imgWrap.addEventListener("mouseout", function(e) {
-      e.target.style.cssText =
-        "opacity: 1.0;" +
-        "width: 120px;" +
-        "height: 120px;" +
-        "object-fit: cover";
-    });
-    const rgbrange = document.getElementById("rgbrange");
-    const mountrgb = this.rgbShift;
-    rgbrange.addEventListener("input", function() {
-      console.log(this.rgbvalue);
-      mountrgb.uniforms["amount"].value = this.rgbvalue;
-    });
-    const pixelrange = document.getElementById("pixelrange");
-    const mountpixel = this.Pixel;
-    pixelrange.addEventListener("input", function() {
-      mountpixel.uniforms["pixelSize"].value = this.pixelvalue;
-    });
   },
   methods: {
     init() {
-      this.camera = new THREE.OrthographicCamera(
-        window.innerWidth / -2,
-        window.innerWidth / 2,
-        window.innerHeight / 2,
-        window.innerHeight / -2,
-        1,
-        100
-      );
-      this.camera.position.z = 50;
-      this.camera.aspect = window.innerWidth / window.innerHeight;
-      this.scene = new THREE.Scene();
-      this.video = document.getElementById("video");
+      this.clock = new THREE.Clock();
+      this.time = 0.0;
+
+      this.windowWidth = window.innerWidth;
+      this.windowHeight = window.innerHeight;
+      this.dpr = window.devicePixelRatio;
       this.$canvas = document.getElementById("canvas");
-
-      this.texture = new THREE.VideoTexture(this.video);
-
-      this.geometry = new THREE.PlaneBufferGeometry(
-        window.innerWidth,
-        window.innerHeight
+      this.camera = new THREE.PerspectiveCamera(
+        70,
+        window.innerWidth / window.innerHeight,
+        1,
+        10000
       );
-      this.material = new THREE.MeshBasicMaterial({ map: this.texture });
+      this.camera.position.y = 150;
+      this.camera.position.z = 1;
 
-      this.mesh = new THREE.Mesh(this.geometry, this.material);
-      this.scene.add(this.mesh);
+      this.scene = new THREE.Scene();
+
+      //横長の前提で
+      let aspect = this.windowWidth / this.windowHeight;
+
+      //Geometryを作成
+      this.geometry = new THREE.BufferGeometry();
+
+      //頂点座標
+      this.vertices = new Float32Array([
+        -1.0 * aspect,
+        1.0,
+        0.0,
+        1.0 * aspect,
+        1.0,
+        0.0,
+        -1.0 * aspect,
+        -1.0,
+        0.0,
+        1.0 * aspect,
+        -1.0,
+        0.0
+      ]);
+
+      //頂点インデックス
+      this.index = new Uint32Array([0, 2, 1, 1, 2, 3]);
+
+      //頂点座標
+      this.geometry.addAttribute(
+        "position",
+        new THREE.BufferAttribute(this.vertices, 3)
+      );
+      //頂点のつなげ順
+      this.geometry.setIndex(new THREE.BufferAttribute(this.index, 1));
+
+      this.materialShader = new THREE.ShaderMaterial({
+        uniforms: {
+          time: {
+            type: "f",
+            value: this.time
+          },
+          resolution: {
+            type: "v2",
+            value: new THREE.Vector2(
+              this.windowWidth * this.dpr,
+              this.windowHeight * this.dpr
+            )
+          }
+        },
+        vertexShader: document.getElementById("vertexShader").textContent,
+        fragmentShader: this.fragment
+      });
+
+      this.model = new THREE.Mesh(this.geometry, this.materialShader);
+      this.model.position.y = 150;
+      this.scene.add(this.model);
+
       this.renderer = new THREE.WebGLRenderer({
         antialias: true,
-        canvas: this.$canvas,
-        preserveDrawingBuffer: true
+        canvas: this.$canvas
       });
-      this.renderer.setPixelRatio(window.devicePixelRatio);
+      this.renderer.setClearColor(0xf0f0f0);
+      this.renderer.setSize(window.innerWidth, window.innerHeight);
 
-      //post effect
-      this.composer = new THREE.EffectComposer(this.renderer);
-      this.composer.addPass(new THREE.RenderPass(this.scene, this.camera));
-      this.rgbShift = new THREE.ShaderPass(THREE.RGBShiftShader);
-      this.Sepia = new THREE.ShaderPass(THREE.SepiaShader);
-      this.digiGlitch = new THREE.GlitchPass();
-      this.Film = new THREE.ShaderPass(THREE.FilmShader);
-      this.Pixel = new THREE.ShaderPass(THREE.PixelShader);
-      this.Sobel = new THREE.ShaderPass(THREE.SobelOperatorShader);
-      this.digiGlitch.goWild = true;
-      this.composer.addPass(this.rgbShift);
-      this.rgbShift.enabled = false;
-      this.rgbShift.renderToScreen = true;
-      this.composer.addPass(this.Sepia);
-      this.Sepia.enabled = false;
-      this.composer.addPass(this.Film);
-      this.Film.enabled = false;
-      this.composer.addPass(this.Pixel);
-      this.Pixel.enabled = false;
-      this.composer.addPass(this.digiGlitch);
-      this.digiGlitch.enabled = false;
-      this.composer.addPass(this.Sobel);
-      this.Sobel.enabled = false;
-
-      // 初期化のために実行
-      this.onResize();
-      // this.video.play(); //デバッグ用
-      // リサイズイベント発生時に実行
-      window.addEventListener("resize", this.onResize);
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
-          this.video.srcObject = stream;
-          this.video.play();
-        });
-      }
+      window.addEventListener("resize", this.onWindowResize, false);
     },
-    onResize() {
-      // サイズを取得
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-
-      // レンダラーのサイズを調整する
-      this.renderer.setPixelRatio(window.devicePixelRatio);
-      this.renderer.setSize(width, height);
-
-      // カメラのアスペクト比を正す
-      this.camera.aspect = width / height;
+    onWindowResize() {
+      this.camera.aspect = window.innerWidth / window.innerHeight;
       this.camera.updateProjectionMatrix();
-    },
 
+      this.renderer.setSize(window.innerWidth, window.innerHeight);
+    },
     animate() {
-      const time = Date.now() * 0.005;
-      // this.mesh.rotation.x = time * 0.1;
-      // this.mesh.rotation.y = time * 0.1;
-      this.AnimationID = requestAnimationFrame(this.animate);
-      this.composer.render(this.scene, this.camera);
+      requestAnimationFrame(this.animate);
+      this.render();
     },
-    glitch() {
-      if (this.digiGlitch.enabled == true) {
-        this.digiGlitch.enabled = false;
-      } else {
-        this.digiGlitch.enabled = true;
-      }
+    render() {
+      this.time = this.clock.getElapsedTime();
+      this.model.material.uniforms.time.value = this.time;
+      this.renderer.render(this.scene, this.camera);
     },
-    rgb() {
-      if (this.rgbShift.enabled == true) {
-        this.rgbShift.enabled = false;
-      } else {
-        this.rgbShift.enabled = true;
-      }
-    },
-    mosaic() {
-      if (this.Pixel.enabled == true) {
-        this.Pixel.enabled = false;
-      } else {
-        this.Pixel.enabled = true;
-      }
-    },
-    sepia() {
-      if (this.Sepia.enabled == true) {
-        this.Sepia.enabled = false;
-      } else {
-        this.Sepia.enabled = true;
-      }
-    },
-    film() {
-      if (this.Film.enabled == true) {
-        this.Film.enabled = false;
-      } else {
-        this.Film.enabled = true;
-      }
-    },
-    sobel() {
-      if (this.Sobel.enabled == true) {
-        this.Sobel.enabled = false;
-      } else {
-        this.Sobel.enabled = true;
-      }
-    },
-    capture() {
-      cancelAnimationFrame(this.AnimationID);
-      var imgroot = document.getElementById("img-wrap");
-      if (imgroot.hasChildNodes()) {
-        imgroot.removeChild(imgroot.firstChild);
-      }
+    frag_compile() {
+      this.materialShader = new THREE.ShaderMaterial({
+        uniforms: {
+          time: {
+            type: "f",
+            value: this.time
+          },
+          resolution: {
+            type: "v2",
+            value: new THREE.Vector2(
+              this.windowWidth * this.dpr,
+              this.windowHeight * this.dpr
+            )
+          }
+        },
+        vertexShader: document.getElementById("vertexShader").textContent,
+        fragmentShader: this.fragment
+      });
 
-      var url = this.$canvas.toDataURL("image/jpeg", 0.5);
-      var link = document.createElement("a");
-      var img = document.createElement("img");
-      link.href = url;
-      link.setAttribute("target", "_blank");
-      img.src = url;
-      img.style.cssText =
-        "width: 120px;" + "height: 120px;" + "object-fit: cover";
-      link.appendChild(img);
-      document.getElementById("img-wrap").appendChild(link);
-      this.animate();
+      this.model = new THREE.Mesh(this.geometry, this.materialShader);
+      this.model.position.y = 150;
+      this.scene.add(this.model);
     }
   }
 };
 </script>
 <style lang="scss" scoped>
 .home {
+  position: relative;
   width: 100%;
   height: auto;
-  position: relative;
-  #canvas {
-    z-index: 0;
-    position: fixed;
-  }
-  .element {
-    position: fixed;
-    z-index: 100;
-    right: 0;
-    width: 130px;
-    .effect-btn {
-      padding: 15px;
-      margin-bottom: 30px;
-      background-color: rgba(255, 255, 255, 0.5);
-      width: 100%;
-      height: auto;
-      label {
-        display: block;
-        margin: 10px 0;
-      }
-      input[type="range"] {
-        width: 100px;
-        height: auto;
-      }
-    }
-    #img-wrap {
-      width: 100%;
-      height: auto;
-    }
-    @media screen and (max-width: 768px) {
-    }
-  }
-
-  .capture_btn {
-    position: fixed;
-    z-index: 100;
-    bottom: 50px;
-    left: calc(50% - 50px);
-    display: block;
-    opacity: 1;
-    transition: all 0.3s;
-    div {
-      position: relative;
-      width: 100px;
-      height: 100px;
-      background-color: white;
-      border-radius: 100%;
-      text-align: center;
-      img {
-        margin-top: 10%;
-        width: 80%;
-        height: 80%;
-        transition: all 0.5s;
-      }
-    }
-    @media screen and (min-width: 768px) {
-      &:hover {
-        opacity: 0.5;
-        div {
-          img {
-            margin-top: 25%;
-            width: 50%;
-            height: 50%;
-            transform: rotate(-45deg);
-          }
-        }
-      }
-    }
-
-    &:active {
-      opacity: 0.5;
-      div {
-        img {
-          margin-top: 25%;
-          width: 50%;
-          height: 50%;
-          transform: rotate(-45deg);
-        }
-      }
+  .text_contents {
+    z-index: 90;
+    position: absolute;
+    top: 0;
+    #fragmentText {
+      white-space: pre-wrap;
+      word-wrap: break-word;
     }
   }
 }
