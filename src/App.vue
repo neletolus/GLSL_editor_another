@@ -1,13 +1,20 @@
 <template>
   <div id="app">
+    <HeaderItem></HeaderItem>
     <router-view></router-view>
   </div>
 </template>
 
 <script>
+import HeaderItem from "./components/Header";
+
 export default {
-  name: "app"
-}
+  name: "app",
+  components: {
+    HeaderItem
+  },
+  methods: {}
+};
 </script>
 
 
@@ -16,7 +23,8 @@ export default {
   margin: 0;
   padding: 0;
 }
-html,body {
+html,
+body {
   overflow: hidden;
 }
 </style>

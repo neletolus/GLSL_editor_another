@@ -1,5 +1,5 @@
 {
-  "name": "cameraapp",
+  "name": "glsl_editor_another",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,8 +9,10 @@
   },
   "dependencies": {
     "core-js": "^2.6.5",
+    "firebase": "^6.6.0",
     "three": "^0.104.0",
     "vue": "^2.6.10",
+    "vue-prism-editor": "^0.3.0",
     "vue-router": "^3.0.3"
   },
   "devDependencies": {
