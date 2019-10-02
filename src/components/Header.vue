@@ -11,13 +11,13 @@
       </ul>
     </nav>
     <!-- ログイン時にはフォームとログアウトボタンを表示 -->
-    <div v-if="user.uid" key="login">
-      [{{ user.displayName }}]
-      <button type="button" @click="doLogout">ログアウト</button>
+    <div class="login_form" v-if="user.uid" key="login">
+      <img class="login_img" :src="user.photoURL" />
+      <a href="#" type="button" @click="doLogout">ログアウト</a>
     </div>
     <!-- 未ログイン時にはログインボタンを表示 -->
-    <div v-else key="logout">
-      <button type="button" @click="doLogin">ログイン</button>
+    <div class="login_form" v-else key="logout">
+      <a href="#" type="button" @click="doLogin">ログイン</a>
     </div>
   </header>
 </template>
@@ -59,5 +59,27 @@ export default {
   z-index: 999;
   width: 100%;
   height: 50px;
+
+  .login_form {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    justify-content: flex-start;
+    vertical-align: middle;
+    a {
+      height: 20px;
+      background-color: white;
+      padding: 5px;
+      text-decoration: none;
+      color: black;
+    }
+    .login_img {
+      width: 50px;
+      height: 50px;
+      border-radius: 100%;
+      margin-right: 10px;
+    }
+  }
 }
 </style>

@@ -11,11 +11,13 @@
       }
     </p>
     <div class="buttons">
-      <button v-on:click="frag_compile">run</button>
-      <button v-on:click="frag_save">save</button>
-      <button v-on:click="hide_code">hide_code</button>
-      <button v-on:click="move_home">ホーム</button>
-      <button v-on:click="move_codes">コード一覧</button>
+      <a href="#" v-on:click="frag_compile">run</a>
+      <a href="#" v-on:click="frag_stop">stop</a>
+
+      <a href="#" v-on:click="frag_save">save</a>
+      <a href="#" v-on:click="hide_code">toggle_code</a>
+      <a href="#" v-on:click="move_home">ホーム</a>
+      <a href="#" v-on:click="move_codes">コード一覧</a>
     </div>
     <div id="codes" class="codes">
       <a
@@ -23,7 +25,7 @@
         v-bind:key="value.date"
         href="#"
         v-on:click="changeCode(index)"
-      >{{value[1]}}{{value[2]}}</a>
+      >{{value[2]}} {{value[1]}}</a>
     </div>
     <div id="input_area" class="input_area">
       <prism-editor id="fragmenttext" v-model="fragment" language="glsl" :line-numbers="true"></prism-editor>
@@ -261,24 +263,36 @@ export default {
       this.scene.add(this.model);
       this.shaderError = document.getElementById("shaderError");
     },
-    frag_save() {
-      this.doSend();
+    frag_stop() {
+      this.materialShader.dispose();
+      this.scene.remove(this.model);
+      this.model = null;
     },
-    doSend() {
+    frag_save() {
+      let codeName = prompt("Please input your shader title.");
+      if (codeName == null) {
+      } else {
+        this.doSend(codeName);
+      }
+    },
+    doSend(codeName) {
       if (this.user.uid && this.fragment.length) {
+        if (codeName == "") {
+          codeName = this.user.displayName + "さんのコード";
+        }
         // firebase にメッセージを追加
         firebase
           .database()
           .ref("code")
           .push({
             code: this.fragment,
-            name: this.user.displayName,
-            date: Date.now()
+            name: codeName,
+            date: this.formatDate(new Date(), "YYYY/MM/DD")
           });
       }
     },
     changeCode(index) {
-      document.getElementById("codes").style.display = "none";
+      document.getElementById("codes").classList.remove("active");
 
       let changeHistory = this.codes[index][0];
 
@@ -286,10 +300,10 @@ export default {
       this.frag_compile();
     },
     move_home() {
-      document.getElementById("codes").style.display = "none";
+      document.getElementById("codes").classList.remove("active");
     },
     move_codes() {
-      document.getElementById("codes").style.display = "block";
+      document.getElementById("codes").classList.add("active");
     },
     hide_code() {
       if (
@@ -300,6 +314,28 @@ export default {
       } else {
         document.getElementById("input_area").style.display = "block";
       }
+    },
+    /**
+     * 日付をフォーマットする
+     * @param  {Date}   date     日付
+     * @param  {String} [format] フォーマット
+     * @return {String}          フォーマット済み日付
+     */
+    formatDate(date, format) {
+      if (!format) format = "YYYY-MM-DD hh:mm:ss.SSS";
+      format = format.replace(/YYYY/g, date.getFullYear());
+      format = format.replace(/MM/g, ("0" + (date.getMonth() + 1)).slice(-2));
+      format = format.replace(/DD/g, ("0" + date.getDate()).slice(-2));
+      format = format.replace(/hh/g, ("0" + date.getHours()).slice(-2));
+      format = format.replace(/mm/g, ("0" + date.getMinutes()).slice(-2));
+      format = format.replace(/ss/g, ("0" + date.getSeconds()).slice(-2));
+      if (format.match(/S/g)) {
+        var milliSeconds = ("00" + date.getMilliseconds()).slice(-3);
+        var length = format.match(/S/g).length;
+        for (var i = 0; i < length; i++)
+          format = format.replace(/S/, milliSeconds.substring(i, i + 1));
+      }
+      return format;
     }
   }
 };
@@ -312,19 +348,40 @@ export default {
   .buttons {
     z-index: 90;
     position: absolute;
-    height: 30px;
+    height: 50px;
     top: 80px;
+    left: 20px;
+    display: flex;
+    justify-content: flex-start;
+    a {
+      padding: 12px 20px;
+      background-color: rgba(255, 255, 255, 0.5);
+      margin-right: 10px;
+      text-decoration: none;
+      color: black;
+      transition: all 0.3s;
+    }
+    a:hover {
+      background-color: white;
+    }
   }
   .codes {
     z-index: 99;
     position: absolute;
-    width: 100%;
+    width: 0%;
     height: calc(100vh - 130px);
     top: 130px;
+    right: 0;
     background-color: white;
-    display: none;
+    display: block;
+    transition: all 0.3s;
+    visibility: hidden;
     a {
       display: block;
+    }
+    &.active {
+      width: 100%;
+      visibility: visible;
     }
   }
   .input_area {
