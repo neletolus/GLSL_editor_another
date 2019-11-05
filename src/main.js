@@ -2,8 +2,9 @@ import Vue from 'vue'
 import App from './App.vue'
 import router from './router'
 import firebase from "firebase/app"
-import "firebase/auth";
+import "firebase/auth"
 import "firebase/database"
+import "firebase/storage"
 
 Vue.config.productionTip = false
 
@@ -13,7 +14,7 @@ let firebaseConfig = {
   authDomain: "glsl-editor-another.firebaseapp.com",
   databaseURL: "https://glsl-editor-another.firebaseio.com",
   projectId: "glsl-editor-another",
-  storageBucket: "",
+  storageBucket: "glsl-editor-another.appspot.com",
   messagingSenderId: "566674832794",
   appId: "1:566674832794:web:6c127e8bb4cbde50dfce23"
 };

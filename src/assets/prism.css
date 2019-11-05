@@ -8,7 +8,7 @@ https://prismjs.com/download.html#themes=prism&languages=clike+glsl&plugins=line
 
 code[class*="language-"],
 pre[class*="language-"] {
-  color: black;
+  color: white;
   background: none;
   font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
   font-size: 1em;
@@ -75,11 +75,11 @@ pre[class*="language-"] {
 .token.prolog,
 .token.doctype,
 .token.cdata {
-  color: slategray;
+  color: #8ff;
 }
 
 .token.punctuation {
-  color: #999;
+  color: #bbb;
 }
 
 .namespace {
@@ -93,7 +93,7 @@ pre[class*="language-"] {
 .token.constant,
 .token.symbol,
 .token.deleted {
-  color: #905;
+  color: #fbb;
 }
 
 .token.selector,
@@ -102,7 +102,7 @@ pre[class*="language-"] {
 .token.char,
 .token.builtin,
 .token.inserted {
-  color: #690;
+  color: #8f8;
 }
 
 .token.operator,
@@ -110,19 +110,18 @@ pre[class*="language-"] {
 .token.url,
 .language-css .token.string,
 .style .token.string {
-  color: #9a6e3a;
-  background: hsla(0, 0%, 100%, 0.5);
+  color: #5b5;
 }
 
 .token.atrule,
 .token.attr-value,
 .token.keyword {
-  color: #07a;
+  color: #bbf;
 }
 
 .token.function,
 .token.class-name {
-  color: #dd4a68;
+  color: #fbf;
 }
 
 .token.regex,

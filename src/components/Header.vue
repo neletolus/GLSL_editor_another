@@ -1,15 +1,5 @@
 <template>
   <header id="header">
-    <nav id="header-nav">
-      <ul>
-        <!-- <router-link to="/" tag="li" id="home-nav">
-          <a>ホーム</a>
-        </router-link>
-        <router-link tag="li" id="codes-nav" to="/codes">
-          <a>コード一覧</a>
-        </router-link>-->
-      </ul>
-    </nav>
     <!-- ログイン時にはフォームとログアウトボタンを表示 -->
     <div class="login_form" v-if="user.uid" key="login">
       <img class="login_img" :src="user.photoURL" />
@@ -57,16 +47,15 @@ export default {
   position: absolute;
   top: 0;
   z-index: 999;
-  width: 100%;
-  height: 50px;
-
+  width: auto;
+  height: 30px;
+  right: 30px;
+  top: 30px;
   .login_form {
-    position: absolute;
-    top: 20px;
-    right: 20px;
+    position: relative;
     display: flex;
     justify-content: flex-start;
-    vertical-align: middle;
+    align-items: center;
     a {
       height: 20px;
       background-color: white;
