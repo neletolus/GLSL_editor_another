@@ -1,6 +1,11 @@
 <template>
   <div class="home" @mousemove="mouseMove">
-    <canvas id="canvas"></canvas>
+    <div id="canvas_wrap" class="canvas_wrap">
+      <canvas id="canvas"></canvas>
+      <a href="#" v-on:click="onWindowResize">
+        <img src="@/assets/img/expand.png" alt />
+      </a>
+    </div>
     <div class="buttons">
       <a href="#" v-on:click="code_compile">run</a>
       <a href="#" v-on:click="code_stop">stop</a>
@@ -14,7 +19,6 @@
       <label for="points">points</label>
       <input type="radio" id="board" value="board" v-model="picked" />
       <label for="board">板ポリ</label>
-
       <br />
     </div>
     <div id="codes" class="codes">
@@ -76,6 +80,7 @@ export default {
     const thumbs = [];
     const stats = null;
     const picked = null;
+    const expandJudge = 0;
     return {
       $canvas,
       camera,
@@ -100,7 +105,8 @@ export default {
       codes,
       thumbs,
       stats,
-      picked
+      picked,
+      expandJudge
     };
   },
   mounted() {
@@ -269,13 +275,61 @@ export default {
 
       // window.addEventListener("resize", this.onWindowResize, false);
     },
-    //一旦閉じとく
-    // onWindowResize() {
-    //   this.camera.aspect = window.innerWidth / window.innerHeight;
-    //   this.camera.updateProjectionMatrix();
+    onWindowResize() {
+      let canvas_wrap = document.getElementById("canvas_wrap");
 
-    //   this.renderer.setSize(window.innerWidth, window.innerHeight);
-    // },
+      if (this.expandJudge == 0) {
+        this.expandJudge++;
+        canvas_wrap.style.zIndex = 999;
+        this.windowWidth = window.innerWidth;
+        this.windowHeight = window.innerHeight;
+        this.stats.domElement.style.top = "10px";
+      } else {
+        this.expandJudge--;
+        canvas_wrap.style.zIndex = 0;
+        this.windowWidth = 512;
+        this.windowHeight = 512;
+        this.stats.domElement.style.top = "530px";
+      }
+
+      this.camera.aspect = this.windowWidth / this.windowHeight;
+      this.camera.updateProjectionMatrix();
+
+      this.renderer.setSize(this.windowWidth, this.windowHeight);
+
+      if (this.picked == null || this.picked == "board") {
+        console.log("board");
+
+        this.geometry.dispose();
+        let aspect = this.windowWidth / this.windowHeight;
+
+        this.geometry = new THREE.BufferGeometry();
+
+        this.vertices = new Float32Array([
+          -1.0 * aspect,
+          1.0,
+          0.0,
+          1.0 * aspect,
+          1.0,
+          0.0,
+          -1.0 * aspect,
+          -1.0,
+          0.0,
+          1.0 * aspect,
+          -1.0,
+          0.0
+        ]);
+
+        this.index = new Uint32Array([0, 2, 1, 1, 2, 3]);
+
+        this.geometry.addAttribute(
+          "position",
+          new THREE.BufferAttribute(this.vertices, 3)
+        );
+        this.geometry.setIndex(new THREE.BufferAttribute(this.index, 1));
+      }
+      this.code_compile();
+    },
     animate() {
       requestAnimationFrame(this.animate);
       this.render();
@@ -542,6 +596,27 @@ export default {
   width: 100%;
   height: 100vh;
   background-color: black;
+  .canvas_wrap {
+    position: absolute;
+    transition: all 0.3s;
+    &:hover {
+      a {
+        opacity: 1;
+      }
+    }
+    a {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      z-index: 100;
+      transition: all 0.3s;
+      opacity: 0;
+      img {
+        width: 30px;
+        height: 30px;
+      }
+    }
+  }
   .buttons {
     z-index: 90;
     position: absolute;
