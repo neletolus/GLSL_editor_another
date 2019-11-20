@@ -77,6 +77,9 @@ export default {
     const waveArray = null;
     const samples = null;
     const volume = null;
+    const midiDevices = [];
+    const midiArray = null;
+    const midi = null;
     return {
       $canvas,
       camera,
@@ -109,37 +112,24 @@ export default {
       freqData,
       waveArray,
       samples,
-      volume
+      volume,
+      midiDevices,
+      midiArray,
+      midi
     };
   },
   created() {
-    // Web Audio　の初期化
-    window.AudioContext = window.AudioContext;
-    this.context = new AudioContext();
-    this.analyser = this.context.createAnalyser();
-    let _self = this;
-    // マイクの音声を取得。　WebAudioのanalyserにわたしている。
-    navigator.getUserMedia =
-      navigator.getUserMedia ||
-      navigator.webkitGetUserMedia ||
-      navigator.mozGetUserMedia;
-    navigator.getUserMedia(
-      { video: false, audio: true },
-      function(stream) {
-        let microphone = _self.context.createMediaStreamSource(stream);
-        microphone.connect(_self.analyser);
-      },
-      function(error) {
-        return;
-      }
-    );
-    this.analyser.minDecibels = -90; //最小値
-    this.analyser.maxDecibels = 0; //最大値
+    const firstAudioEvent =
+      typeof document.ontouchend !== "undefined" ? "touchend" : "mouseup";
+    document.addEventListener(firstAudioEvent, this.initAudioContext);
 
-    this.analyser.fftSize = 1024; //音域の数
-    let bufferLength = this.analyser.frequencyBinCount;
-    this.freqArray = new Uint8Array(bufferLength);
-    this.waveArray = new Uint8Array(bufferLength);
+    //webmidi(only chrome)
+    // MIDIデバイス
+    this.midiDevices = {
+      inputs: {}
+    };
+    this.midiArray = new Uint16Array(256 * 128);
+    this.requestMIDI();
   },
   mounted() {
     this.fragment =
@@ -153,13 +143,15 @@ export default {
       "\n" +
       "void main() {\n" +
       "vec2 uv = gl_FragCoord.xy / resolution.xy;\n" +
+      "vec2 uv2 = gl_FragCoord.xy / resolution.xy;\n" +
+      "uv2.y -= .5;\n" +
       "\n" +
       "float freq = texture2D(spectrum, vec2(uv.x, .5)).r;\n" +
       "float wave = texture2D(samples, vec2(uv.x, .5)).r;\n" +
       "\n" +
-      "float r = 1. - step(0.01, abs(wave - uv.y));\n" +
-      "float g = 1. - step(0.01, abs(freq - uv.y));\n" +
-      "float b = 1. - step(0.01, abs(volume / 255. - uv.y));\n" +
+      "float r = 1. - step(0.1, abs(wave - uv.y));\n" +
+      "float g = 1. - step(0.1, abs(freq - uv2.y));\n" +
+      "float b = 1. - step(0.1, abs(volume / 255. - uv2.y));\n" +
       "\n" +
       "gl_FragColor = vec4(r, g, b, 1.);\n" +
       "}\n";
@@ -294,6 +286,10 @@ export default {
           volume: {
             type: "f",
             value: this.volume
+          },
+          midi: {
+            type: "t",
+            value: this.midi
           }
         },
         vertexShader: this.vertex,
@@ -353,6 +349,7 @@ export default {
     render() {
       this.analyser.getByteFrequencyData(this.freqArray);
       this.analyser.getByteTimeDomainData(this.waveArray);
+      this.spectrum = null;
       this.spectrum = new THREE.DataTexture(
         this.freqArray,
         64,
@@ -361,6 +358,7 @@ export default {
         THREE.UnsignedByteType
       );
       this.spectrum.needsUpdate = true;
+      this.samples = null;
       this.samples = new THREE.DataTexture(
         this.waveArray,
         64,
@@ -369,11 +367,21 @@ export default {
         THREE.UnsignedByteType
       );
       this.samples.needsUpdate = true;
-      this.volume = this.getAverageVolume(this.waveArray);
+      this.midi = null;
+      this.midi = new THREE.DataTexture(
+        this.midiArray,
+        255,
+        127,
+        THREE.LuminanceFormat,
+        THREE.UnsignedByteType
+      );
+      this.midi.needsUpdate = true;
+      this.volume = this.getAverageVolume(this.freqArray);
       this.time = this.clock.getElapsedTime();
       this.model.material.uniforms.spectrum.value = this.spectrum;
       this.model.material.uniforms.samples.value = this.samples;
       this.model.material.uniforms.volume.value = this.volume;
+      this.model.material.uniforms.midi.value = this.midi;
 
       this.model.material.uniforms.time.value = this.time;
       this.model.material.uniforms.mouse.value = this.mouse;
@@ -450,6 +458,10 @@ export default {
           volume: {
             type: "f",
             value: this.volume
+          },
+          midi: {
+            type: "t",
+            value: this.midi
           }
         },
         vertexShader: this.vertex,
@@ -526,6 +538,29 @@ export default {
     move_codes() {
       document.getElementById("codes").classList.add("active");
     },
+    initAudioContext() {
+      // Web Audio　の初期化
+      this.context = new AudioContext();
+      this.analyser = this.context.createAnalyser();
+      let _self = this;
+      // マイクの音声を取得。　WebAudioのanalyserにわたしている。
+      navigator.mediaDevices
+        .getUserMedia({ video: false, audio: true })
+        .then(function(stream) {
+          let microphone = _self.context.createMediaStreamSource(stream);
+          microphone.connect(_self.analyser);
+        })
+        .catch(function(error) {
+          return;
+        });
+      this.analyser.minDecibels = -90; //最小値
+      this.analyser.maxDecibels = 0; //最大値
+
+      this.analyser.fftSize = 1024; //音域の数
+      let bufferLength = this.analyser.frequencyBinCount;
+      this.freqArray = new Uint8Array(bufferLength);
+      this.waveArray = new Uint8Array(bufferLength);
+    },
     getAverageVolume(array) {
       //疑似ボリューム生成
       let values = 0;
@@ -541,6 +576,49 @@ export default {
       average = values / length;
       return average;
     },
+    //midi周りの処理
+    requestSuccess(data) {
+      // Inputデバイスの配列を作成
+      let inputIterator = data.inputs.values();
+      for (
+        let input = inputIterator.next();
+        !input.done;
+        input = inputIterator.next()
+      ) {
+        let value = input.value;
+        // デバイス情報を保存
+        this.midiDevices.inputs[value.name] = value;
+        // イベント登録
+        value.addEventListener("midimessage", this.inputEvent, false);
+      }
+    },
+
+    requestError(error) {
+      console.error("error!!!", error);
+    },
+    requestMIDI() {
+      if (navigator.requestMIDIAccess) {
+        navigator
+          .requestMIDIAccess()
+          .then(this.requestSuccess, this.requestError);
+      } else {
+        requestError();
+      }
+    },
+    inputEvent(e) {
+      let target = e.target;
+      let message = "";
+      let numArray = [];
+
+      // 2桁の16進数にして表示する
+      event.data.forEach(function(val) {
+        numArray.push(parseInt("00" + val.toString(16), 16));
+      });
+
+      this.midiArray[numArray[0] * 128 + numArray[1]] = numArray[2];
+      console.log(this.midiArray);
+    },
+
     /**
      * 日付をフォーマットする
      * @param  {Date}   date     日付
