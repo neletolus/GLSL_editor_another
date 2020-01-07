@@ -23,12 +23,23 @@
           v-on:click="changeCode(index)"
         >
           <img :src="value[4]" />
-          <p>{{value[3]}} {{value[2]}}</p>
+          <p>{{value[2]}} {{value[1]}}</p>
         </a>
       </div>
     </div>
     <div id="input_area" class="input_area">
       <prism-editor id="fragmenttext" v-model="fragment" language="glsl" :line-numbers="true"></prism-editor>
+    </div>
+    <div class="option_area">
+      <p>precision float setting</p>
+      <div class="option_area_radio">
+        <input type="radio" id="lowp" value="lowp" v-model="precision_float" />
+        <label for="lowp">lowp</label>
+        <input type="radio" id="mediump" value="mediump" v-model="precision_float" />
+        <label for="mediump">mediump</label>
+        <input type="radio" id="highp" value="highp" v-model="precision_float" />
+        <label for="highp">highp</label>
+      </div>
     </div>
   </div>
 </template>
@@ -80,6 +91,8 @@ export default {
     const midiDevices = [];
     const midiArray = null;
     const midi = null;
+    const precision_float = "mediump";
+    const audiofirstjudge = 0;
     return {
       $canvas,
       camera,
@@ -115,23 +128,17 @@ export default {
       volume,
       midiDevices,
       midiArray,
-      midi
+      midi,
+      precision_float,
+      audiofirstjudge
     };
   },
-  created() {
-    const firstAudioEvent =
-      typeof document.ontouchend !== "undefined" ? "touchend" : "mouseup";
-    document.addEventListener(firstAudioEvent, this.initAudioContext);
-
-    //webmidi(only chrome)
-    // MIDIデバイス
+  mounted() {
     this.midiDevices = {
       inputs: {}
     };
-    this.midiArray = new Uint16Array(256 * 128);
+    this.midiArray = new Float32Array(256 * 128);
     this.requestMIDI();
-  },
-  mounted() {
     this.fragment =
       "precision mediump float;\n" +
       "uniform float time;\n" +
@@ -156,7 +163,9 @@ export default {
       "gl_FragColor = vec4(r, g, b, 1.);\n" +
       "}\n";
     this.vertex =
-      "precision mediump float;\n" +
+      "precision " +
+      this.precision_float +
+      " float;\n" +
       "uniform float time;\n" +
       "uniform vec2 resolution;\n" +
       "uniform vec2 mouse;\n" +
@@ -166,8 +175,6 @@ export default {
     firebase.auth().onAuthStateChanged(user => {
       this.user = user ? user : {};
     });
-    this.init();
-    this.animate();
 
     const ref_codes = firebase.database().ref("code");
     let _this = this;
@@ -177,7 +184,13 @@ export default {
       _this.codes.length = 0;
       snapshot.forEach(function(childSnapshot) {
         let value = childSnapshot.val();
-        let values = [value.code, value.code2, value.name, value.date];
+        let values = [
+          value.code,
+          value.name,
+          value.date,
+          value.precision_float
+        ];
+
         storageRef
           .child("images/" + value.thumbnail)
           .getDownloadURL()
@@ -202,6 +215,10 @@ export default {
         _this.codes.unshift(values);
       });
     });
+
+    const firstAudioEvent =
+      typeof document.ontouchend !== "undefined" ? "touchend" : "mouseup";
+    document.addEventListener(firstAudioEvent, this.initAudioContext);
   },
   methods: {
     init() {
@@ -370,10 +387,10 @@ export default {
       this.midi = null;
       this.midi = new THREE.DataTexture(
         this.midiArray,
-        255,
-        127,
+        256,
+        128,
         THREE.LuminanceFormat,
-        THREE.UnsignedByteType
+        THREE.FloatType
       );
       this.midi.needsUpdate = true;
       this.volume = this.getAverageVolume(this.freqArray);
@@ -429,6 +446,17 @@ export default {
       );
       //頂点のつなげ順
       this.geometry.setIndex(new THREE.BufferAttribute(this.index, 1));
+
+      this.vertex =
+        "precision " +
+        this.precision_float +
+        " float;\n" +
+        "uniform float time;\n" +
+        "uniform vec2 resolution;\n" +
+        "uniform vec2 mouse;\n" +
+        "void main(){\n" +
+        "gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\n" +
+        "}\n";
 
       this.materialShader = new THREE.ShaderMaterial({
         uniforms: {
@@ -510,7 +538,6 @@ export default {
           0.1
         );
 
-        // firebase にメッセージを追加
         firebase
           .database()
           .ref("code")
@@ -518,17 +545,18 @@ export default {
             code: this.fragment,
             name: codeName,
             date: this.formatDate(new Date(), "YYYY/MM/DD/hh:mm"),
+            precision_float: this.precision_float,
             thumbnail: thumbName
           });
       }
     },
     changeCode(index) {
       document.getElementById("codes").classList.remove("active");
-
       let changeHistory = this.codes[index][0];
       console.log(this.codes[index]);
 
       this.fragment = changeHistory;
+      this.precision_float = this.codes[index][3];
       this.code_compile();
     },
     move_frag() {
@@ -537,6 +565,15 @@ export default {
     },
     move_codes() {
       document.getElementById("codes").classList.add("active");
+      let code_link = document.getElementsByClassName("code_link");
+      let imgsrc = code_link[0].children[0].getAttribute("src");
+
+      let newimage = new Image();
+      newimage.src = imgsrc;
+      newimage.onerror = function() {
+        imgsrc = "https://placegoat.com/200/200";
+        code_link[0].children[0].setAttribute("src", imgsrc);
+      };
     },
     initAudioContext() {
       // Web Audio　の初期化
@@ -560,6 +597,14 @@ export default {
       let bufferLength = this.analyser.frequencyBinCount;
       this.freqArray = new Uint8Array(bufferLength);
       this.waveArray = new Uint8Array(bufferLength);
+      //webmidi(only chrome)
+      // MIDIデバイス
+
+      if (this.audiofirstjudge == 0) {
+        this.init();
+        this.animate();
+        this.audiofirstjudge = this.audiofirstjudge + 1;
+      }
     },
     getAverageVolume(array) {
       //疑似ボリューム生成
@@ -602,7 +647,7 @@ export default {
           .requestMIDIAccess()
           .then(this.requestSuccess, this.requestError);
       } else {
-        requestError();
+        this.requestError();
       }
     },
     inputEvent(e) {
@@ -615,7 +660,7 @@ export default {
         numArray.push(parseInt("00" + val.toString(16), 16));
       });
 
-      this.midiArray[numArray[0] * 128 + numArray[1]] = numArray[2];
+      this.midiArray[numArray[0] + numArray[1] * 256] = numArray[2];
       console.log(this.midiArray);
     },
 
@@ -770,6 +815,23 @@ export default {
     }
     &.hidden {
       display: none;
+    }
+  }
+  .option_area {
+    position: absolute;
+    top: 600px;
+    background-color: gray;
+    width: 512px;
+    padding: 10px;
+    box-sizing: border-box;
+    p {
+      margin-bottom: 10px;
+    }
+    input {
+      margin-right: 5px;
+    }
+    label {
+      margin-right: 10px;
     }
   }
 }
