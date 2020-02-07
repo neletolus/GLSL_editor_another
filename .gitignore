@@ -3,7 +3,7 @@ node_modules/*
 !three
 !vue-prism-editor
 /dist
-
+main-act.js
 # local env files
 .env.local
 .env.*.local
