@@ -18,6 +18,7 @@ let firebaseConfig = {
   messagingSenderId: "",
   appId: ""
 };
+
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 
