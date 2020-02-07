@@ -635,7 +635,7 @@ export default {
         this.midiDevices.inputs[value.name] = value;
         // イベント登録
         value.addEventListener("midimessage", this.inputEvent, false);
-        console.log('hi!');
+
       }
     },
 
@@ -644,7 +644,7 @@ export default {
     },
     requestMIDI() {
       if (navigator.requestMIDIAccess) {
-              console.log('hi!');
+
         navigator
           .requestMIDIAccess({sysex: true})
           .then(this.requestSuccess, this.requestError);
