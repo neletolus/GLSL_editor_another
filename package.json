@@ -10,7 +10,7 @@
   "dependencies": {
     "core-js": "^2.6.10",
     "firebase": "^6.6.0",
-    "three": "^0.104.0",
+    "three": "^0.137.0",
     "vue": "^2.6.10",
     "vue-router": "^3.0.3"
   },
